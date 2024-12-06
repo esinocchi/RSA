@@ -25,14 +25,11 @@ Key = Tuple[int, int]
 
 # Helper functions
 def gcd(a: int, b: int) -> int:
-   """Compute greatest common divisor of a and b using Euclidean algorithm"""
    while b != 0:
        a, b = b, a % b
    return a
 
 def extended_euclid(a: int, b: int) -> Tuple[int,int,int]:
-   """Extended Euclidean algorithm to find Bézout's identity
-   Returns (g, x, y) where g = gcd(a,b) and ax + by = g"""
    if b == 0:
        return (a, 1, 0)
    g, x1, y1 = extended_euclid(b, a % b)
@@ -41,17 +38,12 @@ def extended_euclid(a: int, b: int) -> Tuple[int,int,int]:
    return (g, x, y)
 
 def mod_inv(a: int, m: int) -> int:
-   """Calculate modular multiplicative inverse of a modulo m
-   Returns x where ax ≡ 1 (mod m)"""
-   g, x, _ = extended_euclid(a, m)
+   g, x, z = extended_euclid(a, m)
    if g != 1:
        raise ValueError("Modular inverse does not exist.")
    return x % m
 
-# Modular arithmetic for RSA operations
 def mod_exp(base: int, exp: int, modulus: int) -> int:
-   """Efficient modular exponentiation using square-and-multiply algorithm
-   Computes: base^exp mod modulus"""
    result = 1
    current = base % modulus
    e = exp
@@ -64,8 +56,6 @@ def mod_exp(base: int, exp: int, modulus: int) -> int:
 
 # Prime number generation and testing
 def is_probable_prime(n: int, k: int=10) -> bool:
-   """Fermat primality test with small prime preprocessing
-   First checks divisibility by small primes, then performs k Fermat tests"""
    if n < 2:
        return False
    if n in (2, 3):
@@ -78,14 +68,13 @@ def is_probable_prime(n: int, k: int=10) -> bool:
        if n % sp == 0:
            return False
    # Fermat primality test
-   for _ in range(k):
+   for i in range(k):
        a = random.randint(2, n-2)
        if mod_exp(a, n-1, n) != 1:
            return False
    return True
 
 def generate_random_nbit_number(n: int) -> int:
-   """Generate random n-bit number within proper bounds"""
    if n <= 1:
        return 2
    lower_bound = 1 << (n-1)  # 2^(n-1)
@@ -93,16 +82,12 @@ def generate_random_nbit_number(n: int) -> int:
    return random.randint(lower_bound, upper_bound)
 
 def generate_prime_candidate(n: int) -> int:
-   """Generate odd candidate for primality testing
-   Ensures number is n bits and odd"""
    candidate = generate_random_nbit_number(n)
    if candidate % 2 == 0:
        candidate += 1
    return candidate
 
 def generate_prime_number(n: int) -> int:
-   """Generate prime number using primality testing
-   Keeps generating candidates until a probable prime is found"""
    while True:
        candidate = generate_prime_candidate(n)
        if is_probable_prime(candidate, k=15):
@@ -136,9 +121,8 @@ def generate_keypair(p: int, q: int) -> Tuple[Key, Key]:
    if p == q:
        raise ValueError("p and q must be distinct primes.")
    if (not is_probable_prime(p)) or (not is_probable_prime(q)):
-       raise ValueError("p and q must be prime.")
+       raise ValueError("p and q must be prime.") 
    
-   # Calculate RSA parameters
    n = p*q
    phi = (p-1)*(q-1)
    
@@ -149,7 +133,6 @@ def generate_keypair(p: int, q: int) -> Tuple[Key, Key]:
        if e >= phi:
            raise ValueError("No suitable e found.")
    
-   # Calculate private exponent d
    d = mod_inv(e, phi)
    return ((n,e),(n,d)) 
 
