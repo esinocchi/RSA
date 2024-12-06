@@ -38,7 +38,7 @@ def mod_exp(base, exp, mod):
         e //= 2
     return result
 
-def fermat(n, k=10):
+def fermat(n, k):
     if n < 2:
         return False
     if n in (2,3):
