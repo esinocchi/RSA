@@ -19,212 +19,235 @@ from typing import Tuple
 import random
 import math
 
-# Type defs
+# Type definitions for RSA keys
 Key = Tuple[int, int]
 
-def gcd(a, b):
-    while b != 0:
-        a, b = b, a % b
-    return a
 
-def mod_exp(base, exp, mod):
-    result = 1
-    current = base % mod
-    e = exp
-    while e > 0:
-        if e % 2 == 1:
-            result = (result * current) % mod
-        current = current**2 % mod
-        e //= 2
-    return result
+# Helper functions
+def gcd(a: int, b: int) -> int:
+   """Compute greatest common divisor of a and b using Euclidean algorithm"""
+   while b != 0:
+       a, b = b, a % b
+   return a
 
-def fermat(n, k):
-    if n < 2:
-        return False
-    if n in (2,3):
-        return True
-    for i in range(k):
-        a = random.randint(2, n-2)
-        if mod_exp(a, n-1, n) != 1:
-            return False
-    return True
+def extended_euclid(a: int, b: int) -> Tuple[int,int,int]:
+   """Extended Euclidean algorithm to find Bézout's identity
+   Returns (g, x, y) where g = gcd(a,b) and ax + by = g"""
+   if b == 0:
+       return (a, 1, 0)
+   g, x1, y1 = extended_euclid(b, a % b)
+   x = y1
+   y = x1 - (a // b)*y1
+   return (g, x, y)
 
-def generate_nbit_num(n):
-    if n <= 1:
-        return 2
-    low = 1 << (n-1)
-    high = (1 << n) - 1
-    return random.randint(low, high)
+def mod_inv(a: int, m: int) -> int:
+   """Calculate modular multiplicative inverse of a modulo m
+   Returns x where ax ≡ 1 (mod m)"""
+   g, x, _ = extended_euclid(a, m)
+   if g != 1:
+       raise ValueError("Modular inverse does not exist.")
+   return x % m
 
-def prime_candidate(n):
-    candidate = generate_nbit_num(n)
-    if candidate % 2 == 0:
-        candidate += 1
-    return candidate
+# Modular arithmetic for RSA operations
+def mod_exp(base: int, exp: int, modulus: int) -> int:
+   """Efficient modular exponentiation using square-and-multiply algorithm
+   Computes: base^exp mod modulus"""
+   result = 1
+   current = base % modulus
+   e = exp
+   while e > 0:
+       if e & 1:  # If exponent bit is 1
+           result = (result * current) % modulus
+       current = (current * current) % modulus  # Square step
+       e >>= 1  # Right shift exponent
+   return result
 
+# Prime number generation and testing
+def is_probable_prime(n: int, k: int=10) -> bool:
+   """Fermat primality test with small prime preprocessing
+   First checks divisibility by small primes, then performs k Fermat tests"""
+   if n < 2:
+       return False
+   if n in (2, 3):
+       return True
+   small_primes = [2,3,5,7,11,13,17,19,23,29]
+   # Quick check against small primes
+   for sp in small_primes:
+       if n == sp:
+           return True
+       if n % sp == 0:
+           return False
+   # Fermat primality test
+   for _ in range(k):
+       a = random.randint(2, n-2)
+       if mod_exp(a, n-1, n) != 1:
+           return False
+   return True
 
+def generate_random_nbit_number(n: int) -> int:
+   """Generate random n-bit number within proper bounds"""
+   if n <= 1:
+       return 2
+   lower_bound = 1 << (n-1)  # 2^(n-1)
+   upper_bound = (1 << n) - 1  # 2^n - 1
+   return random.randint(lower_bound, upper_bound)
+
+def generate_prime_candidate(n: int) -> int:
+   """Generate odd candidate for primality testing
+   Ensures number is n bits and odd"""
+   candidate = generate_random_nbit_number(n)
+   if candidate % 2 == 0:
+       candidate += 1
+   return candidate
+
+def generate_prime_number(n: int) -> int:
+   """Generate prime number using primality testing
+   Keeps generating candidates until a probable prime is found"""
+   while True:
+       candidate = generate_prime_candidate(n)
+       if is_probable_prime(candidate, k=15):
+           return candidate
+
+# Main Functions
 def generate_prime(n: int) -> int:
-    '''
-    Description: Generate an n-bit prime number
-    Args: n (No. of bits)
-    Returns: prime number
-    
-    NOTE: This needs to be sufficiently fast or you may not get
-    any credit even if you correctly return a prime number.
-    '''
+   '''
+   Description: Generate an n-bit prime number
+   Args: n (No. of bits)
+   Returns: prime number
+   
+   NOTE: This needs to be sufficiently fast or you may not get
+   any credit even if you correctly return a prime number.
+   '''
+   if n < 1:
+       raise ValueError("Bit size must be >= 1")
+   return generate_prime_number(n)
 
-    if n < 1:
-        raise ValueError("Number of bits must be positive")
-    generated = False
-    while not generated:
-        candidate = prime_candidate(n)
-        if fermat(candidate, k=15):
-            generated = True
-            return candidate
-
-def generate_public(phi: int) -> int:
-
-    common_primes = [3, 5, 7, 11, 13, 17, 19, 23, 29, 65537]
-    for e in common_primes:
-        if e < phi and gcd(e, phi) == 1:
-            return e
-        
-    generated = False
-    while not generated:
-        e = random.randint(3, phi - 1) | 1 # ensures e is odd
-        if gcd(e, phi) == 1:
-            generated = True
-            return e
-        
-def extended_gcd(a: int, b: int,) -> Tuple[int, int, int]:
-    if a == 0:
-        return b, 0 , 1
-    
-    gcd, x1, y1 = extended_gcd(b % a, a)
-    x = y1 - (b // a) * x1
-    y = x1
-
-    return gcd, x, y
-
-def mod_inv(a: int, b: int) -> int:
-    gcd, d, x = extended_gcd(a, b)
-    if gcd != 1:
-        raise ValueError(f"Modular inverse does not exist as {a} and {b} are not coprime")
-    
-    return d % b
-        
 def generate_keypair(p: int, q: int) -> Tuple[Key, Key]:
-    '''
-    Description: Generates the public and private key pair
-    if p and q are distinct primes. Otherwise, raise a value error
-    
-    Args: p, q (input integers)
+   '''
+   Description: Generates the public and private key pair
+   if p and q are distinct primes. Otherwise, raise a value error
+   
+   Args: p, q (input integers)
 
-    Returns: Keypair in the form of (Pub Key, Private Key)
-    PubKey = (n,e) and Private Key = (n,d)
-    '''
-    if p == q:
-        raise ValueError("p and q must be distinct primes")
-    n = p * q
-    phi = (p - 1) * (q - 1)
-    e = generate_public(phi)
-    d = mod_inv(e, phi)
+   Returns: Keypair in the form of (Pub Key, Private Key)
+   PubKey = (n,e) and Private Key = (n,d)
+   '''
+   # Verify inputs are valid primes
+   if p == q:
+       raise ValueError("p and q must be distinct primes.")
+   if (not is_probable_prime(p)) or (not is_probable_prime(q)):
+       raise ValueError("p and q must be prime.")
+   
+   # Calculate RSA parameters
+   n = p*q
+   phi = (p-1)*(q-1)
+   
+   # Find valid public exponent e
+   e = 3
+   while gcd(e, phi) != 1:
+       e += 1
+       if e >= phi:
+           raise ValueError("No suitable e found.")
+   
+   # Calculate private exponent d
+   d = mod_inv(e, phi)
+   return ((n,e),(n,d)) 
 
-    return ((n,e), (n, d))
-    
+def rsa_encrypt(m: str, pub_key: Key, blocksize: int) -> str:
+   '''
+   Description: Encrypts the message with the given public
+   key using the RSA algorithm.
 
-def rsa_encrypt(m: str, pub_key: Key, blocksize: int) -> int:
-    '''
-    Description: Encrypts the message with the given public
-    key using the RSA algorithm.
+   Args: m (input string)
 
-    Args: m (input string)
+   Returns: c (encrypted cipher)
+   NOTE: You CANNOT use the built-in pow function (or any similar function)
+   here.
+   '''
+   n, e = pub_key
+   if blocksize <= 0:
+       raise ValueError("Invalid blocksize")
+   
+   # Pad message with spaces to fit blocksize
+   while len(m)%blocksize!=0:
+       m+=chr(32)
+       
+   # Process message in blocks
+   ciphertext = ""
+   for i in range(0,len(m),blocksize):
+       chunk = m[i:i+blocksize]
+       M = chunk_to_num(chunk)
+       C = mod_exp(M,e,n)
+       cchunk = num_to_chunk(C, blocksize)
+       cchunk = cchunk[:blocksize]
+       ciphertext+=cchunk
+   return ciphertext
 
-    Returns: c (encrypted cipher)
-    NOTE: You CANNOT use the built-in pow function (or any similar function)
-    here.
-    '''
+def rsa_decrypt(c: str, priv_key: Key, blocksize: int) -> str:
+   '''
+   Description: Decrypts the ciphertext using the private key
+   according to RSA algorithm
 
-    if blocksize <= 0:
-        raise ValueError("Blocksize must be positive")
+   Args: c (encrypted cipher string)
 
-    n, e = pub_key
-    num = chunk_to_num(m)
-
-    if num >= n:
-        raise ValueError("Message too large for given key size. Try increasing key size or reducing message length")
-
-    c = mod_exp(num, e, n)
-    return c
-
-
-def rsa_decrypt(c: str, priv_key: Key, blocksize: int) -> int:
-    '''
-    Description: Decrypts the ciphertext using the private key
-    according to RSA algorithm
-
-    Args: c (encrypted cipher string)
-
-    Returns: m (decrypted message, a string)
-    NOTE: You CANNOT use the built-in pow function (or any similar function)
-    here.
-    '''
-    n, d = priv_key
-    c = int(c)
-    m = mod_exp(c, d, n)
-    word = num_to_chunk(m, blocksize)
-    return word
-
-def chunk_to_num( chunk ):
-    '''
-    Description: Convert chunk (substring) to a unique number mod n^k
-    n is the common modulus, k is length of chunk.
-
-    Args: chunk (a substring of some messages)
-
-    Returns: r (some integer)
-    NOTE: You CANNOT use any built-in function to implement base conversion. 
-    '''
-    for c in chunk:
-        val = ord(c)
-        if val < 32 or val > 128:
-            raise ValueError("Input contains invalid characters. Only ASCII characters between 32 and 128 are supported")
-        
-    base = 97
-    k = len(chunk)
-    num = 0
-
-    for i, ch in enumerate(chunk):
-        val = ord(ch) - 32
-        power = k - 1 - i
-        num += val * (base**power)
-
-    return num
+   Returns: m (decrypted message, a string)
+   NOTE: You CANNOT use the built-in pow function (or any similar function)
+   here.
+   '''
+   n, d = priv_key
+   if blocksize<=0:
+       raise ValueError("Invalid blocksize")
+   if len(c)%blocksize!=0:
+       raise ValueError("Invalid ciphertext length")
+       
+   # Process ciphertext in blocks
+   plaintext = ""
+   for i in range(0,len(c),blocksize):
+       cchunk = c[i:i+blocksize]
+       C = chunk_to_num(cchunk)
+       M = mod_exp(C,d,n)
+       mchunk = num_to_chunk(M, blocksize)
+       mchunk = mchunk[:blocksize]
+       plaintext+=mchunk
+   return plaintext
 
 
-def num_to_chunk( num, chunksize ):
-    '''
-    Description: Convert a number back to a chunk using a given 
-    chunk size
+def chunk_to_num(chunk: str) -> int:
+   '''
+   Description: Convert chunk (substring) to a unique number mod n^k
+   n is the common modulus, k is length of chunk.
 
-    Args: num (integer), chunksize (integer)
+   Args: chunk (a substring of some messages)
 
-    Returns: chunk (some substring)
-    NOTE: You CANNOT use any built-in function to implement base conversion. 
-    '''
-    base = 97
-    r = num
-    word = []
+   Returns: r (some integer)
+   NOTE: You CANNOT use any built-in function to implement base conversion. 
+   '''
+   base = 96  # Range of printable ASCII characters
+   num = 0
+   # Convert each character to a number and combine using positional notation
+   for i, ch in enumerate(chunk):
+       val = ord(ch)-32  # Normalize ASCII values to start at 0
+       num += val*(base**i)
+   return num
 
-    if chunksize <= 0:
-        raise ValueError("Chunksize must be positive")
-    if num < 0:
-        raise ValueError("Number must be non-negative")
+def num_to_chunk(num: int, chunksize: int) -> str:
+   '''
+   Description: Convert a number back to a chunk using a given 
+   chunk size
 
-    for i in range(chunksize):
-        c1 = r // (base**(chunksize-i-1))
-        letter = chr(c1 + 32)
-        word.append(letter)
-        r = r % (base**(chunksize-i-1))
-    
-    return ''.join(word)
+   Args: num (integer), chunksize (integer)
+
+   Returns: chunk (some substring)
+   NOTE: You CANNOT use any built-in function to implement base conversion. 
+   '''
+   base = 96
+   digits = []
+   # Extract digits using repeated division
+   while num > 0:
+       digit = num % base
+       num //= base
+       digits.append(chr(digit+32))  # Convert back to ASCII
+   # Pad with spaces if needed
+   if len(digits) < chunksize:
+       digits += [chr(32)]*(chunksize - len(digits))
+   return ''.join(digits)
