@@ -1,20 +1,3 @@
-# -----------------------------------------------------------------------
-# SP24 CMPSC 360 Extra Credit Assignment 2
-# RSA Implementation
-# 
-# Name: Evan Sinocchi
-# ID: ezs5772
-# 
-# 
-# You cannot use any external/built-in libraries to help compute gcd
-# or modular inverse. You cannot use RSA, cryptography, or similar libs
-# for this assignment. You must write your own implementation for generating
-# large primes. You must wirte your own implementation for modular exponentiation and
-# modular inverse.
-# 
-# You are allowed to use randint from the built-in random library
-# -----------------------------------------------------------------------
-
 from typing import Tuple
 import random
 import math
